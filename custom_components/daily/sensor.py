@@ -80,10 +80,11 @@ class DailySensor(DailySensorEntity):
                 STATE_UNKNOWN,
                 STATE_UNAVAILABLE,
             ):
-                self._occurrence = (
-                    dt_util.parse_datetime(str(restored_occurrence))
-                    or restored_occurrence
-                )
+                parsed = dt_util.parse_datetime(str(restored_occurrence))
+                if parsed is not None:
+                    self._occurrence = parsed
+                elif isinstance(restored_occurrence, datetime):
+                    self._occurrence = restored_occurrence
 
     @callback
     def _handle_reset(self, event: Event):
