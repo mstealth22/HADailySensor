@@ -7,6 +7,7 @@ from statistics import StatisticsError, median, stdev, variance
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, callback
+from homeassistant.util import dt as dt_util
 
 from .const import (  # pylint: disable=unused-import
     ATTR_DATETIME_OF_OCCURRENCE,
@@ -66,6 +67,24 @@ class DailySensor(DailySensorEntity):
 
         state = await self.async_get_last_state()
         self._state = parse_sensor_state(state)
+        # Restore the datetime_of_occurrence across restarts. HA restores the
+        # last state's attributes, so reuse the previously recorded timestamp;
+        # otherwise the time of the min/max is lost on restart until a new
+        # extreme is recorded (see issues #65 and #111).
+        if state is not None:
+            restored_occurrence = state.attributes.get(ATTR_DATETIME_OF_OCCURRENCE)
+            if restored_occurrence not in (
+                None,
+                "None",
+                "",
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ):
+                parsed = dt_util.parse_datetime(str(restored_occurrence))
+                if parsed is not None:
+                    self._occurrence = parsed
+                elif isinstance(restored_occurrence, datetime):
+                    self._occurrence = restored_occurrence
 
     @callback
     def _handle_reset(self, event: Event):
